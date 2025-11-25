@@ -1,0 +1,162 @@
+Enum user_role {
+  member
+  creator
+  admin
+}
+
+Enum request_status {
+  pending
+  approved
+  rejected
+}
+
+Enum event_visibility {
+  public
+  unlisted
+}
+
+Enum photo_status {
+  pending // Waiting in queue
+  processing // Currently being worked on
+  ready // Processed successfully
+  failed // Error during processing
+  hidden // Takedown requested by user
+  deleted // Soft deleted by Admin
+}
+
+Enum claim_status {
+  pending
+  approved
+  rejected
+}
+
+// ------------------------------------------
+// AUTHENTICATION (Better-Auth)
+// ------------------------------------------
+
+Table users {
+  id text [pk, note: 'Better-Auth String ID']
+  username varchar [not null, unique]
+  email varchar [not null, unique]
+  emailVerified boolean [not null, default: false]
+  image text [note: 'Stored in runcam-display (Public Bucket, Watermarked)']
+  role user_role [not null, default: 'member']
+
+  phone varchar(32)
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+}
+
+Table session {
+  id text [pk]
+  expiresAt timestamptz [not null]
+  ipAddress text
+  userAgent text
+  userId text [not null, ref: > users.id]
+}
+
+Table account {
+  id text [pk]
+  accountId text [not null]
+  providerId text [not null]
+  userId text [not null, ref: > users.id]
+  accessToken text
+  refreshToken text
+  expiresAt timestamptz
+  password text [note: 'Hashed password']
+}
+
+Table verification {
+  id text [pk]
+  identifier text [not null]
+  value text [not null]
+  expiresAt timestamptz [not null]
+}
+
+// ------------------------------------------
+// CORE
+// ------------------------------------------
+
+Table creator_requests {
+  id uuid [pk, default: `gen_random_uuid()`]
+  user_id text [not null]
+  status request_status [not null, default: 'pending']
+  portfolio_link text
+  motivation text
+  reviewed_by text
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+}
+
+Table events {
+  id uuid [pk, default: `gen_random_uuid()`]
+  name varchar(160) [not null]
+  description text
+  location text
+  image text [note: 'Stored in runcam-display (Public Bucket, Watermarked)']
+  starts_at timestamptz
+  visibility event_visibility [not null, default: 'public']
+  created_by text [not null]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+}
+
+Table photos {
+  id uuid [pk, default: `gen_random_uuid()`]
+  event_id uuid
+  uploader_id text [not null]
+
+  original_name text [note: 'e.g. DSC_1234.jpg']
+  storage_path_raw text [not null, note: 'Stored in runcam-raw (Private Bucket)']
+  storage_path_display text [note: 'Stored in runcam-display (Public Bucket, Watermarked)']
+
+  width int
+  height int
+  taken_at timestamptz
+
+  status photo_status [not null, default: 'pending']
+  retry_count int [not null, default: 0]
+  processing_error text
+
+  faces_count int [not null, default: 0]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+}
+
+Table photo_embeddings {
+  id uuid [pk, default: `gen_random_uuid()`]
+  photo_id uuid [not null]
+  embedding vector(128) [not null]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  // CREATE INDEX ON photo_embeddings USING hnsw (embedding vector_cosine_ops);
+}
+
+Table user_embeddings {
+  id uuid [pk, default: `gen_random_uuid()`]
+  user_id text [not null]
+  embedding vector(128) [not null]
+  is_active boolean [not null, default: true]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+}
+
+Table claims {
+  id uuid [pk, default: `gen_random_uuid()`]
+  photo_id uuid [not null]
+  claimant_id text [not null]
+  status claim_status [not null, default: 'approved']
+  match_score float
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+}
+
+Ref: creator_requests.user_id > users.id
+Ref: events.created_by > users.id
+Ref: photos.event_id > events.id
+Ref: photos.uploader_id > users.id
+Ref: photo_embeddings.photo_id > photos.id
+Ref: user_embeddings.user_id > users.id
+Ref: claims.photo_id > photos.id
+Ref: claims.claimant_id > users.id

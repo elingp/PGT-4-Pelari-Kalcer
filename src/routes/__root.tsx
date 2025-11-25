@@ -1,12 +1,12 @@
-import { TanStackDevtools } from "@tanstack/react-devtools";
-import { createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
-import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
+import { createRootRouteWithContext, HeadContent, Scripts } from "@tanstack/react-router";
+import type { ReactNode } from "react";
+import { useEffect, useState } from "react";
+import { Navbar } from "@/components/layout/navbar";
+import type { RouterContext } from "@/router";
 
-import Header from "../components/Header";
+import appCss from "../styles/app.css?url";
 
-import appCss from "../styles.css?url";
-
-export const Route = createRootRoute({
+export const Route = createRootRouteWithContext<RouterContext>()({
   head: () => ({
     meta: [
       {
@@ -31,26 +31,48 @@ export const Route = createRootRoute({
   shellComponent: RootDocument,
 });
 
-function RootDocument({ children }: { children: React.ReactNode }) {
+function RootDocument({ children }: { children: ReactNode }) {
+  const [devtools, setDevtools] = useState<ReactNode | null>(null);
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) {
+      return;
+    }
+
+    void Promise.all([
+      import("@tanstack/react-devtools"),
+      import("@tanstack/react-router-devtools"),
+      import("@tanstack/react-query-devtools"),
+    ]).then(([devtoolsModule, routerDevtoolsModule, queryDevtoolsModule]) => {
+      setDevtools(
+        <devtoolsModule.TanStackDevtools
+          config={{
+            position: "bottom-right",
+          }}
+          plugins={[
+            {
+              name: "TanStack Router",
+              render: <routerDevtoolsModule.TanStackRouterDevtoolsPanel />,
+            },
+            {
+              name: "TanStack Query",
+              render: <queryDevtoolsModule.ReactQueryDevtoolsPanel />,
+            },
+          ]}
+        />,
+      );
+    });
+  }, []);
+
   return (
     <html lang="en">
       <head>
         <HeadContent />
       </head>
       <body>
-        <Header />
+        <Navbar />
         {children}
-        <TanStackDevtools
-          config={{
-            position: "bottom-right",
-          }}
-          plugins={[
-            {
-              name: "Tanstack Router",
-              render: <TanStackRouterDevtoolsPanel />,
-            },
-          ]}
-        />
+        {devtools}
         <Scripts />
       </body>
     </html>

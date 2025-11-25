@@ -1,5 +1,4 @@
-import "dotenv/config";
-import { db } from "../src/db/client";
+import { db } from "../src/db";
 import { usersTable } from "../src/db/schema";
 
 const seedUsers = [
