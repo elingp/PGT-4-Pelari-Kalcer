@@ -1,30 +1,38 @@
 name: CI
 
-permissions:
-  contents: read
+permissions: {}
 
 on:
   push:
+    branches: ["**"]
   pull_request:
-    branches:
-      - main
+    branches: ["main"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   verify-and-build:
     name: Verify and Build
     runs-on: ubuntu-latest
-    environment: development
+    # Run if it's a push OR if the repo of the PR != the repo of the base.
+    # (i.e., Run if it's a fork. Don't run if it's an internal branch, because 'push' already covered it).
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
     env:
       CI: true
-      VITE_APP_NAME: ${{ vars.VITE_APP_NAME }}
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      VITE_APP_NAME: "RunCam App (CI)"
+      POSTGRES_USER: ci_user
+      POSTGRES_PASSWORD: ci_password
+      POSTGRES_DB: ci_test_db
+      DATABASE_URL: "postgresql://ci_user:ci_password@localhost:5432/ci_test_db"
     services:
       postgres:
         image: pgvector/pgvector:pg18
         env:
-          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
-          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
         ports:
           - 5432:5432
         options: >-
@@ -34,20 +42,11 @@ jobs:
           --health-retries 5
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
-      - name: Install PostgreSQL client
+      - name: Set up pgvector extension
         run: |
-          sudo apt-get update
-          sudo apt-get install -y postgresql-client
-
-      - name: Setup pgvector extension
-        run: |
-          PGPASSWORD=${{ secrets.POSTGRES_PASSWORD }} psql -h localhost -U ${{ secrets.POSTGRES_USER }} -d ${{ secrets.POSTGRES_DB }} -c "CREATE EXTENSION IF NOT EXISTS vector;"
-
-      - name: Verify pgvector installation
-        run: |
-          PGPASSWORD=${{ secrets.POSTGRES_PASSWORD }} psql -h localhost -U ${{ secrets.POSTGRES_USER }} -d ${{ secrets.POSTGRES_DB }} -c "SELECT extname, extversion FROM pg_extension WHERE extname = 'vector';"
+          docker exec ${{ job.services.postgres.id }} psql -U ${{ env.POSTGRES_USER }} -d ${{ env.POSTGRES_DB }} -c "CREATE EXTENSION IF NOT EXISTS vector;"
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
@@ -58,12 +57,12 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-cache-v1-${{ hashFiles('bun.lock') }}
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
           restore-keys: |
-            ${{ runner.os }}-bun-cache-v1-
+            ${{ runner.os }}-bun-
 
       - name: Install dependencies
-        run: bun install --frozen-lockfile
+        run: bun ci
 
       - name: Run checks
         run: bun run check
@@ -72,5 +71,4 @@ jobs:
         run: bun run build
 
       - name: Push schema and seed data
-        if: success()
         run: bun run db:reset
