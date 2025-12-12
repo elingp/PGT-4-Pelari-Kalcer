@@ -3,7 +3,13 @@ import { BadgeCheck, ChevronDown, ChevronRight, Clock, XCircle } from "lucide-re
 import { useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
-import { submitCreatorRequestContract } from "@/contracts/creator-request.contract";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  type CreatorRequestPopulated,
+  submitCreatorRequestContract,
+} from "@/contracts/creator-request.contract";
 import {
   approveRequest,
   listAllApprovedRequests,
@@ -14,16 +20,6 @@ import {
   submitRequest,
 } from "@/features/creator-request/server";
 import { getAuthSession } from "@/lib/auth-actions";
-
-type RequestRow = {
-  id: string;
-  name: string;
-  submittedAt: string;
-  status: "pending" | "approved" | "rejected";
-  note?: string;
-  motivation: string;
-  portfolio: string;
-};
 
 export const Route = createFileRoute("/verification/")({
   beforeLoad: async () => {
@@ -54,7 +50,7 @@ function VerificationPage() {
   const { session } = Route.useRouteContext();
   const { pendingRequests, approvedRequests, rejectedRequests, ownRequests } =
     Route.useLoaderData();
-  const role = (session?.user as { role?: string } | undefined)?.role ?? "member";
+  const role = session?.user?.role ?? "member";
   const [openRow, setOpenRow] = useState<string | null>(null);
 
   const roleCta = (() => {
@@ -64,22 +60,23 @@ function VerificationPage() {
         variant: "secondary" as const,
         isAdmin: false,
         stepInstruction: "You are already verified",
-        className: "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100",
+        className:
+          "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 hover:text-emerald-700",
       };
     }
     if (role === "admin") {
       return {
         label: "Review requests",
-        variant: "secondary" as const,
+        variant: "outline" as const,
         isAdmin: true,
         stepInstruction: "Review requests in one place",
         className:
-          "bg-(--accent)/10 text-(--accent-strong) border border-(--accent)/30 hover:bg-(--accent)/20",
+          "bg-primary/10 text-primary border-primary/30 hover:bg-primary/20 hover:text-primary",
       };
     }
     return {
       label: "Request creator badge",
-      variant: "primary" as const,
+      variant: "default" as const,
       isAdmin: false,
       stepInstruction: "Apply or review in one place",
       isMember: true,
@@ -91,16 +88,18 @@ function VerificationPage() {
       <div className="space-y-6">
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold">Creator Verification</h1>
-          <p className="text-sm text-(--text-muted)">Apply for or review creator access.</p>
+          <p className="text-sm text-muted-foreground">
+            Apply for creator access or review pending requests.
+          </p>
         </div>
 
         <div className="flex items-center justify-between gap-3 flex-wrap rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="space-y-1">
-            <p className="text-sm text-(--text-muted)">Next steps</p>
+            <p className="text-sm text-muted-foreground">Next steps</p>
             <p className="text-base font-medium">{roleCta.stepInstruction}</p>
             {roleCta.isMember && (
-              <p className="text-sm text-(--text-muted)">
-                Share your links, then we will confirm and badge your profile.
+              <p className="text-sm text-muted-foreground">
+                Share your portfolio links. We'll review your profile and grant the badge.
               </p>
             )}
           </div>
@@ -114,10 +113,10 @@ function VerificationPage() {
           <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
             <div className="flex items-center justify-between px-6 py-5 border-b border-slate-200">
               <div>
-                <p className="text-sm text-(--text-muted)">Recent requests</p>
+                <p className="text-sm text-muted-foreground">Recent requests</p>
                 <p className="text-base font-medium">Status at a glance</p>
               </div>
-              <span className="text-sm text-(--text-muted)">{`${ownRequests?.length} requests`}</span>
+              <span className="text-sm text-muted-foreground">{`${ownRequests?.length} requests`}</span>
             </div>
             <div className="divide-y divide-slate-200">
               {ownRequests?.map((request) => {
@@ -131,31 +130,33 @@ function VerificationPage() {
                     >
                       <div className="flex items-center gap-3 flex-1">
                         {isOpen ? (
-                          <ChevronDown className="h-4 w-4 text-(--text-muted)" />
+                          <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
                         ) : (
-                          <ChevronRight className="h-4 w-4 text-(--text-muted)" />
+                          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
                         )}
                         <div>
-                          <p className="font-medium text-(--text-primary)">{request.name}</p>
-                          <p className="text-(--text-muted)">
-                            Submitted {request.submittedAt?.toLocaleDateString()}
+                          <p className="font-medium text-foreground">{request.name}</p>
+                          <p className="text-muted-foreground">
+                            Submitted {request.createdAt?.toLocaleDateString("en-GB")}
                           </p>
                         </div>
                       </div>
                       <StatusPill status={request.status} />
-                      <p className="text-(--text-muted) w-48 truncate text-right">{request.note}</p>
+                      <p className="hidden sm:block text-muted-foreground w-48 truncate text-right">
+                        {request.note}
+                      </p>
                     </button>
                     {isOpen && (
                       <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm space-y-2">
                         <div>
-                          <p className="text-(--text-muted)">Motivation</p>
-                          <p className="font-medium text-(--text-primary)">{request.motivation}</p>
+                          <p className="text-muted-foreground">Reason for Application</p>
+                          <p className="font-medium text-foreground">{request.motivation}</p>
                         </div>
                         <div>
-                          <p className="text-(--text-muted)">Portfolio</p>
+                          <p className="text-muted-foreground">Portfolio Link</p>
                           <a
                             href={request.portfolioLink ?? ""}
-                            className="text-(--accent-strong) font-medium hover:underline break-all"
+                            className="text-primary font-medium hover:underline break-all"
                             target="_blank"
                             rel="noreferrer"
                           >
@@ -164,8 +165,8 @@ function VerificationPage() {
                         </div>
                         {request.note && (
                           <div className="">
-                            <p className="text-(--text-muted)">Note from Admin</p>
-                            <p className="font-medium text-(--text-primary)">{request.note}</p>
+                            <p className="text-muted-foreground">Admin Feedback</p>
+                            <p className="font-medium text-foreground">{request.note}</p>
                           </div>
                         )}
                       </div>
@@ -188,25 +189,25 @@ function VerificationPage() {
   );
 }
 
-function StatusPill({ status }: { status: RequestRow["status"] }) {
+function StatusPill({ status }: { status: CreatorRequestPopulated["status"] }) {
   const base = "inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold";
   if (status === "approved") {
     return (
       <span className={`${base} bg-emerald-50 text-emerald-700 border border-emerald-100`}>
-        <BadgeCheck className="h-4 w-4" /> Approved
+        <BadgeCheck className="h-4 w-4" /> <span className="hidden sm:inline">Approved</span>
       </span>
     );
   }
   if (status === "pending") {
     return (
       <span className={`${base} bg-amber-50 text-amber-700 border border-amber-100`}>
-        <Clock className="h-4 w-4" /> Pending
+        <Clock className="h-4 w-4" /> <span className="hidden sm:inline">Pending</span>
       </span>
     );
   }
   return (
     <span className={`${base} bg-rose-50 text-rose-700 border border-rose-100`}>
-      <XCircle className="h-4 w-4" /> Rejected
+      <XCircle className="h-4 w-4" /> <span className="hidden sm:inline">Rejected</span>
     </span>
   );
 }
@@ -250,11 +251,13 @@ function VerificationForm() {
       setIsLoading(true);
       await submitRequest({ data: requestPayload });
       setStatus("success");
+      setFormState({ portfolioLink: "", motivation: "" });
       router.invalidate();
     } catch (error) {
       setStatus("error");
-      if (error instanceof Error)
-        setError("Request submission has failed. Pending request has already exist.");
+      if (error instanceof Error) {
+        setError(error.message || "Request submission failed");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -263,10 +266,11 @@ function VerificationForm() {
   return (
     <form onSubmit={handleSubmitRequest} className="bg-white w-md space-y-6">
       <div className="flex flex-col gap-4">
-        <label className="space-y-2 text-sm">
-          <span className="text-(--text-muted)">Portfolio URL</span>
-          <input
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 bg-slate-50"
+        <div className="space-y-2">
+          <Label htmlFor="portfolio-link">Portfolio Link</Label>
+          <Input
+            id="portfolio-link"
+            className="bg-muted/50"
             value={formState.portfolioLink}
             type="url"
             disabled={isLoading}
@@ -277,11 +281,12 @@ function VerificationForm() {
           {errors.portfolioLink && (
             <p className="text-sm text-red-400 mt-1">{errors.portfolioLink}</p>
           )}
-        </label>
-        <label className="space-y-2 text-sm">
-          <span className="text-(--text-muted)">Motivation</span>
-          <textarea
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 bg-slate-50"
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="motivation">Reason for Application</Label>
+          <Textarea
+            id="motivation"
+            className="bg-muted/50"
             value={formState.motivation}
             disabled={isLoading}
             onChange={(event) =>
@@ -291,21 +296,21 @@ function VerificationForm() {
             required
           />
           {errors.motivation && <p className="text-sm text-red-400 mt-1">{errors.motivation}</p>}
-        </label>
+        </div>
       </div>
 
       {status === "success" && (
-        <p className="text-sm text-emerald-700">Request has been submitted successfully.</p>
+        <p className="text-sm text-emerald-700">Request submitted successfully.</p>
       )}
       {status === "error" && error && <p className="text-sm text-rose-700">{error}</p>}
 
       <div className="flex justify-end gap-3">
         <Button
-          className="bg-(--accent) text-(--surface) hover:bg-(--accent-strong)"
+          className="bg-primary text-primary-foreground hover:bg-primary/90"
           type="submit"
           disabled={isLoading}
         >
-          {isLoading ? "Saving..." : "Submit"}
+          {isLoading ? "Submitting..." : "Submit Request"}
         </Button>
       </div>
     </form>
@@ -313,18 +318,7 @@ function VerificationForm() {
 }
 
 type requestListProps = {
-  requests:
-    | {
-        userId?: string;
-        name: string | null;
-        id: string;
-        portfolioLink: string | null;
-        motivation: string | null;
-        note: string | null;
-        submittedAt: Date | null;
-        status: "pending" | "approved" | "rejected";
-      }[]
-    | undefined;
+  requests: CreatorRequestPopulated[] | undefined;
   label: string;
 };
 
@@ -354,7 +348,7 @@ function RequestList({ requests, label }: requestListProps) {
       router.invalidate();
     } catch (error) {
       setStatus("error");
-      if (error instanceof Error) setError("Request approval has failed");
+      if (error instanceof Error) setError(error.message || "Request approval failed");
     } finally {
       setIsLoading(false);
     }
@@ -376,7 +370,7 @@ function RequestList({ requests, label }: requestListProps) {
       router.invalidate();
     } catch (error) {
       setStatus("error");
-      if (error instanceof Error) setError("Request rejection has failed");
+      if (error instanceof Error) setError(error.message || "Request rejection failed");
     } finally {
       setIsLoading(false);
     }
@@ -385,14 +379,14 @@ function RequestList({ requests, label }: requestListProps) {
     <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
       <div className="flex items-center justify-between px-6 py-5 border-b border-slate-200">
         <div>
-          <p className="text-sm text-(--text-muted)">{label} requests</p>
+          <p className="text-sm text-muted-foreground">{label} requests</p>
           <p className="text-base font-medium">Status at a glance</p>
         </div>
         {status === "success" && (
           <p className="text-sm text-emerald-700">Request has been {adminAction} successfully.</p>
         )}
         {status === "error" && error && <p className="text-sm text-rose-700">{error}</p>}
-        <span className="text-sm text-(--text-muted)">{`${requests?.length} requests`}</span>
+        <span className="text-sm text-muted-foreground">{`${requests?.length} requests`}</span>
       </div>
       <div className="divide-y divide-slate-200">
         {requests?.map((request) => {
@@ -404,34 +398,36 @@ function RequestList({ requests, label }: requestListProps) {
                 className="w-full flex items-center gap-4 text-sm text-left rounded-lg hover:bg-slate-50 px-2 py-2"
                 onClick={() => setOpenRow(isOpen ? null : request.id)}
               >
-                <div className="flex items-center gap-3 flex-1">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
                   {isOpen ? (
-                    <ChevronDown className="h-4 w-4 text-(--text-muted)" />
+                    <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
                   ) : (
-                    <ChevronRight className="h-4 w-4 text-(--text-muted)" />
+                    <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
                   )}
-                  <div>
-                    <p className="font-medium text-(--text-primary)">{request.name}</p>
-                    <p className="text-(--text-muted)">
-                      Submitted {request.submittedAt?.toLocaleDateString()}
+                  <div className="min-w-0 text-left">
+                    <p className="font-medium text-foreground truncate">{request.name}</p>
+                    <p className="text-muted-foreground">
+                      Submitted {request.createdAt?.toLocaleDateString("en-GB")}
                     </p>
                   </div>
                 </div>
                 <StatusPill status={request.status} />
-                <p className="text-(--text-muted) w-48 truncate text-right">{request.note}</p>
+                <p className="hidden sm:block text-muted-foreground w-48 truncate text-right">
+                  {request.note}
+                </p>
               </button>
               {isOpen && (
-                <div className="flex justify-between mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm space-y-2">
+                <div className="flex flex-col gap-4 mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
                   <div className="flex flex-col gap-3">
                     <div>
-                      <p className="text-(--text-muted)">Motivation</p>
-                      <p className="font-medium text-(--text-primary)">{request.motivation}</p>
+                      <p className="text-muted-foreground">Reason for Application</p>
+                      <p className="font-medium text-foreground">{request.motivation}</p>
                     </div>
                     <div>
-                      <p className="text-(--text-muted)">Portfolio</p>
+                      <p className="text-muted-foreground">Portfolio Link</p>
                       <a
                         href={request.portfolioLink ?? ""}
-                        className="text-(--accent-strong) font-medium hover:underline break-all"
+                        className="text-primary font-medium hover:underline break-all"
                         target="_blank"
                         rel="noreferrer"
                       >
@@ -440,8 +436,8 @@ function RequestList({ requests, label }: requestListProps) {
                     </div>
                     {request.note && (
                       <div className="">
-                        <p className="text-(--text-muted)">Note from Admin</p>
-                        <p className="font-medium text-(--text-primary)">{request.note}</p>
+                        <p className="text-muted-foreground">Admin Feedback</p>
+                        <p className="font-medium text-foreground">{request.note}</p>
                       </div>
                     )}
                   </div>
@@ -452,30 +448,34 @@ function RequestList({ requests, label }: requestListProps) {
                           onClick={() =>
                             handleApproval(request.userId ?? "", request.id ?? "", note)
                           }
-                          className="bg-(--accent) text-(--surface) hover:bg-(--accent-strong)"
+                          className="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200 shadow-sm"
                           disabled={isLoading}
                         >
                           {isLoading ? "Approving..." : "Approve"}
                         </Button>
                         <Button
                           onClick={() => handleRejection(request.id ?? "", note)}
-                          className="bg-(--accent) text-(--surface) hover:bg-(--accent-strong)"
+                          className="bg-rose-100 text-rose-700 hover:bg-rose-200 border border-rose-200 shadow-sm"
                           disabled={isLoading}
                         >
                           {isLoading ? "Rejecting..." : "Reject"}
                         </Button>
                       </div>
-                      <label>
-                        <textarea
-                          className="w-full rounded-lg border border-slate-200 px-3 py-2 bg-slate-50"
+                      <div className="w-full">
+                        <Label htmlFor={`note-${request.id}`} className="sr-only">
+                          Feedback
+                        </Label>
+                        <Textarea
+                          id={`note-${request.id}`}
+                          className="bg-muted/50"
                           value={note}
-                          placeholder="Note"
+                          placeholder="Add feedback (optional)"
                           disabled={isLoading}
                           onChange={(event) => setNote(event.target.value)}
                           rows={3}
                           required
                         />
-                      </label>
+                      </div>
                     </div>
                   )}
                 </div>

@@ -5,7 +5,7 @@ node_modules
 .tanstack
 dist
 dist-ssr
-*.local
 .env
-.DS_Store
-.wrangler
+.git
+.github
+.vscode

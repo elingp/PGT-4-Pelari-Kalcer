@@ -1,9 +1,15 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { Camera, EyeOff, Filter, Search, Shield } from "lucide-react";
+import { Camera, ChevronDown, EyeOff, Filter, Search, Shield } from "lucide-react";
 import { useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Slider } from "@/components/ui/slider";
 import { getAuthSession } from "@/lib/auth-actions";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/dashboard/")({
   beforeLoad: async () => {
@@ -21,6 +27,14 @@ function DashboardPage() {
   const [hasRunMatch, setHasRunMatch] = useState(false);
   const [loading, setLoading] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [date, setDate] = useState<Date | undefined>();
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+  const [accuracy, setAccuracy] = useState([60]);
+
+  const handleDateSelect = (newDate: Date | undefined) => {
+    setDate(newDate);
+    setIsPopoverOpen(false);
+  };
 
   const results = useMemo(
     () => [
@@ -71,14 +85,14 @@ function DashboardPage() {
       <div className="space-y-6">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-(--text-primary)">Find Me</h1>
+            <h1 className="text-2xl font-semibold text-foreground">Find Me</h1>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setFiltersOpen((v) => !v)}>
               <Filter className="h-4 w-4 mr-2" /> Filters
             </Button>
             <Button onClick={handleMatch} disabled={loading}>
-              <Search className="h-4 w-4 mr-2" /> {loading ? "Running..." : "Run Find Me"}
+              <Search className="h-4 w-4 mr-2" /> {loading ? "Searching..." : "Start Search"}
             </Button>
           </div>
         </div>
@@ -86,25 +100,54 @@ function DashboardPage() {
         {filtersOpen && (
           <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="grid gap-4 md:grid-cols-3">
-              <label className="space-y-1 text-sm">
-                <span className="text-(--text-muted)">Event</span>
-                <input
-                  placeholder="All events"
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 bg-white text-sm"
+              <div className="space-y-1">
+                <Label htmlFor="event-filter">Event</Label>
+                <Input id="event-filter" placeholder="All events" />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="date-filter">Date</Label>
+                <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      id="date-filter"
+                      className={cn(
+                        "w-full justify-between font-normal",
+                        !date && "text-muted-foreground",
+                      )}
+                    >
+                      {date ? date.toLocaleDateString("en-GB") : "Select date"}
+                      <ChevronDown className="h-4 w-4 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    className="w-auto rounded-xl border border-slate-200 bg-white p-0 shadow-sm"
+                    align="start"
+                  >
+                    <Calendar
+                      mode="single"
+                      selected={date}
+                      captionLayout="dropdown"
+                      onSelect={handleDateSelect}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <Label>Accuracy threshold</Label>
+                  <span className="text-sm text-muted-foreground">{accuracy}%</span>
+                </div>
+                <Slider
+                  value={accuracy}
+                  onValueChange={setAccuracy}
+                  min={40}
+                  max={95}
+                  step={5}
+                  className="w-full py-4"
                 />
-              </label>
-              <label className="space-y-1 text-sm">
-                <span className="text-(--text-muted)">Date</span>
-                <input
-                  type="date"
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 bg-white text-sm"
-                />
-              </label>
-              <label className="space-y-1 text-sm">
-                <span className="text-(--text-muted)">Accuracy threshold</span>
-                <input type="range" min={50} max={95} defaultValue={75} className="w-full" />
-                <p className="text-xs text-(--text-muted)">Higher = stricter match</p>
-              </label>
+                <p className="text-xs text-muted-foreground">Higher = stricter match</p>
+              </div>
             </div>
           </div>
         )}
@@ -117,15 +160,15 @@ function DashboardPage() {
                   <img src={photo.thumb} alt={photo.event} className="h-full w-full object-cover" />
                 </div>
                 <div className="p-4 space-y-2">
-                  <div className="flex items-center justify-between text-sm text-(--text-muted)">
+                  <div className="flex items-center justify-between text-sm text-muted-foreground">
                     <span>{photo.event}</span>
-                    <span className="font-semibold text-(--accent-strong)">
+                    <span className="font-semibold text-primary">
                       {(photo.similarity * 100).toFixed(0)}%
                     </span>
                   </div>
-                  <p className="text-sm text-(--text-muted)">{photo.capturedAt}</p>
-                  <p className="text-sm text-(--text-muted)">By {photo.photographer}</p>
-                  <div className="flex items-center gap-2 text-xs text-(--text-muted)">
+                  <p className="text-sm text-muted-foreground">{photo.capturedAt}</p>
+                  <p className="text-sm text-muted-foreground">By {photo.photographer}</p>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <Shield className="h-4 w-4" /> Contact: {photo.contact}
                   </div>
                   <div className="flex gap-2 pt-2">
@@ -141,14 +184,12 @@ function DashboardPage() {
             ))}
           </div>
         ) : (
-          <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-(--text-muted)">
-            <div className="flex items-center gap-3 text-(--text-primary)">
-              <Camera className="h-5 w-5 text-(--accent-strong)" />
-              No matches yet
+          <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-muted-foreground">
+            <div className="flex items-center gap-3 text-foreground">
+              <Camera className="h-5 w-5 text-primary" />
+              No matches found yet
             </div>
-            <p className="mt-3">
-              Tap “Run Find Me” to search your photo against all uploaded photos.
-            </p>
+            <p className="mt-3">Tap “Start Search” to scan for your photos across all events.</p>
           </div>
         )}
       </div>
